@@ -2,17 +2,23 @@ import { useMemo, useState } from 'react';
 import { calculateBOM } from '../utils/engineering';
 import { FINISHES, ACCESSORIES, SHIPPING_TIERS } from '../data/catalog';
 
-export function PricingPanel({ dimensions, profile, finish, accessories, extraSupports, onToggleAccessory }) {
+export function PricingPanel({
+  dimensions, profile, finish, worktop, backPanel, undershelf,
+  accessories, extraSupports, onToggleAccessory,
+}) {
   const [shipping, setShipping] = useState('pickup');
 
   const bom = useMemo(
-    () => calculateBOM(dimensions, profile, FINISHES[finish].multiplier, extraSupports),
-    [dimensions, profile, finish, extraSupports]
+    () => calculateBOM(dimensions, profile, FINISHES[finish].multiplier, extraSupports, {
+      worktop,
+      backPanel,
+      undershelf,
+    }),
+    [dimensions, profile, finish, extraSupports, worktop, backPanel, undershelf]
   );
 
   const accessoryTotal = useMemo(
-    () =>
-      accessories.reduce((sum, id) => sum + (ACCESSORIES[id]?.price || 0), 0),
+    () => accessories.reduce((sum, id) => sum + (ACCESSORIES[id]?.price || 0), 0),
     [accessories]
   );
 
@@ -35,25 +41,20 @@ export function PricingPanel({ dimensions, profile, finish, accessories, extraSu
         <h3 className="bom-heading">Cut List</h3>
         <table className="bom-table">
           <thead>
-            <tr>
-              <th>Part</th>
-              <th>Length</th>
-              <th>Qty</th>
-            </tr>
+            <tr><th>Part</th><th>Length</th><th>Qty</th></tr>
           </thead>
           <tbody>
             {bom.cutList.cuts.map((cut, i) => (
               <tr key={i}>
                 <td>{cut.label}</td>
                 <td>{cut.length}mm</td>
-                <td>×{cut.quantity}</td>
+                <td>x{cut.quantity}</td>
               </tr>
             ))}
           </tbody>
         </table>
         <div className="bom-summary">
-          Total: {bom.cutList.totalCuts} pieces |{' '}
-          {(bom.cutList.totalLength / 1000).toFixed(2)}m of {bom.profile}
+          {bom.cutList.totalCuts} pieces | {(bom.cutList.totalLength / 1000).toFixed(2)}m of {bom.profile}
         </div>
       </div>
 
@@ -61,22 +62,33 @@ export function PricingPanel({ dimensions, profile, finish, accessories, extraSu
       <div className="bom-section">
         <h3 className="bom-heading">Hardware Kit</h3>
         <div className="hardware-list">
+          <div className="hardware-item"><span>L-Brackets</span><span>x{bom.hardware.brackets.quantity}</span></div>
+          <div className="hardware-item"><span>T-Nuts (inc. 10% spares)</span><span>x{bom.hardware.tNuts.quantity}</span></div>
+          <div className="hardware-item"><span>Bolts (inc. 10% spares)</span><span>x{bom.hardware.bolts.quantity}</span></div>
+          <div className="hardware-item"><span>End Caps</span><span>x{bom.hardware.endCaps.quantity}</span></div>
+        </div>
+      </div>
+
+      {/* Bench Extras */}
+      <div className="bom-section">
+        <h3 className="bom-heading">Bench Extras</h3>
+        <div className="hardware-list">
           <div className="hardware-item">
-            <span>L-Brackets</span>
-            <span>×{bom.hardware.brackets.quantity}</span>
+            <span>Worktop: {bom.extras.worktop.name}</span>
+            <span>{bom.extras.worktop.sqM}m²</span>
           </div>
-          <div className="hardware-item">
-            <span>T-Nuts (inc. 10% spares)</span>
-            <span>×{bom.hardware.tNuts.quantity}</span>
-          </div>
-          <div className="hardware-item">
-            <span>Bolts (inc. 10% spares)</span>
-            <span>×{bom.hardware.bolts.quantity}</span>
-          </div>
-          <div className="hardware-item">
-            <span>End Caps</span>
-            <span>×{bom.hardware.endCaps.quantity}</span>
-          </div>
+          {bom.extras.backPanel.cost > 0 && (
+            <div className="hardware-item">
+              <span>Back Panel: {bom.extras.backPanel.name}</span>
+              <span>{bom.extras.backPanel.sqM}m²</span>
+            </div>
+          )}
+          {bom.extras.undershelf.included && (
+            <div className="hardware-item">
+              <span>Undershelf (Marine Plywood)</span>
+              <span>{bom.extras.undershelf.sqM}m²</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -85,7 +97,7 @@ export function PricingPanel({ dimensions, profile, finish, accessories, extraSu
         <h3 className="bom-heading">Price Breakdown</h3>
         <div className="price-breakdown">
           <div className="price-row">
-            <span>Aluminum ({FINISHES[finish].name})</span>
+            <span>Aluminium Frame ({FINISHES[finish].name})</span>
             <span>${bom.pricing.aluminum.toFixed(2)}</span>
           </div>
           <div className="price-row">
@@ -96,6 +108,22 @@ export function PricingPanel({ dimensions, profile, finish, accessories, extraSu
             <span>Hardware Kit</span>
             <span>${bom.pricing.hardware.toFixed(2)}</span>
           </div>
+          <div className="price-row">
+            <span>Worktop</span>
+            <span>${bom.pricing.worktop.toFixed(2)}</span>
+          </div>
+          {bom.pricing.backPanel > 0 && (
+            <div className="price-row">
+              <span>Back Panel</span>
+              <span>${bom.pricing.backPanel.toFixed(2)}</span>
+            </div>
+          )}
+          {bom.pricing.undershelf > 0 && (
+            <div className="price-row">
+              <span>Undershelf</span>
+              <span>${bom.pricing.undershelf.toFixed(2)}</span>
+            </div>
+          )}
           {accessoryTotal > 0 && (
             <div className="price-row">
               <span>Accessories</span>
@@ -104,15 +132,11 @@ export function PricingPanel({ dimensions, profile, finish, accessories, extraSu
           )}
           <div className="price-row">
             <span>Shipping</span>
-            <span>
-              {shippingCost === 0 ? 'FREE' : `$${shippingCost.toFixed(2)}`}
-            </span>
+            <span>{shippingCost === 0 ? 'FREE' : `$${shippingCost.toFixed(2)}`}</span>
           </div>
           <div className="price-row subtotal">
             <span>Subtotal</span>
-            <span>
-              ${(bom.pricing.subtotal + accessoryTotal + shippingCost).toFixed(2)}
-            </span>
+            <span>${(bom.pricing.subtotal + accessoryTotal + shippingCost).toFixed(2)}</span>
           </div>
           <div className="price-row">
             <span>GST (10%)</span>
@@ -127,7 +151,7 @@ export function PricingPanel({ dimensions, profile, finish, accessories, extraSu
 
       {/* Accessories */}
       <div className="bom-section">
-        <h3 className="bom-heading">Add Accessories</h3>
+        <h3 className="bom-heading">Add-Ons</h3>
         <div className="accessory-grid">
           {Object.entries(ACCESSORIES).map(([id, acc]) => (
             <button
@@ -135,7 +159,13 @@ export function PricingPanel({ dimensions, profile, finish, accessories, extraSu
               className={`accessory-btn ${accessories.includes(id) ? 'selected' : ''}`}
               onClick={() => onToggleAccessory(id)}
             >
-              <span className="accessory-name">{acc.name}</span>
+              <div className="accessory-left">
+                <span className="accessory-icon">{acc.icon}</span>
+                <div>
+                  <span className="accessory-name">{acc.name}</span>
+                  <span className="accessory-desc">{acc.description}</span>
+                </div>
+              </div>
               <span className="accessory-price">+${acc.price.toFixed(2)}</span>
             </button>
           ))}
@@ -152,9 +182,7 @@ export function PricingPanel({ dimensions, profile, finish, accessories, extraSu
               className={`shipping-option ${shipping === id ? 'active' : ''}`}
             >
               <input
-                type="radio"
-                name="shipping"
-                value={id}
+                type="radio" name="shipping" value={id}
                 checked={shipping === id}
                 onChange={() => setShipping(id)}
               />
@@ -169,11 +197,11 @@ export function PricingPanel({ dimensions, profile, finish, accessories, extraSu
 
       {/* CTA */}
       <button className="cta-button">
-        Generate My Custom Build Kit
+        Generate My Workbench Kit
       </button>
       <p className="cta-note">
-        Includes cut-to-length aluminum, complete hardware kit, and
-        step-by-step assembly instructions.
+        Includes cut-to-length aluminium frame, worktop, complete hardware kit,
+        and step-by-step assembly guide.
       </p>
     </div>
   );

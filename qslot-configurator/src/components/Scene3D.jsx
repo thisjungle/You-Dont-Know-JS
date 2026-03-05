@@ -2,7 +2,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment, ContactShadows, Grid } from '@react-three/drei';
 import { FrameModel } from './FrameModel';
 
-export function Scene3D({ dimensions, profile, finish, onDimensionChange }) {
+export function Scene3D({ dimensions, profile, finish, worktop, backPanel, undershelf, onDimensionChange }) {
   return (
     <div className="scene-container">
       <Canvas
@@ -24,7 +24,9 @@ export function Scene3D({ dimensions, profile, finish, onDimensionChange }) {
           dimensions={dimensions}
           profile={profile}
           finish={finish}
-          onDimensionChange={onDimensionChange}
+          worktop={worktop}
+          backPanel={backPanel}
+          undershelf={undershelf}
         />
 
         <ContactShadows

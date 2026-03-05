@@ -3,44 +3,49 @@ import { useState } from 'react';
 const LOAD_OPTIONS = [
   {
     id: 'light',
-    icon: '💻',
+    icon: '📦',
     label: 'Light use',
-    desc: 'Laptop, keyboard, small monitor — everyday office or hobby setup',
+    desc: 'Electronics, 3D printing, hobby projects — under 25kg',
     kg: 25,
   },
   {
     id: 'standard',
-    icon: '🖥️',
-    label: 'Standard setup',
-    desc: 'Dual monitors, PC tower, peripherals — typical workstation',
+    icon: '🔧',
+    label: 'General workshop',
+    desc: 'Power tools, parts, general repair work — up to 50kg',
     kg: 50,
   },
   {
     id: 'heavy',
-    icon: '🔧',
+    icon: '⚙️',
     label: 'Heavy duty',
-    desc: 'Tools, test equipment, heavy gear — workshop or industrial use',
+    desc: 'Engine blocks, welding, vice work — up to 100kg',
     kg: 100,
+  },
+  {
+    id: 'extreme',
+    icon: '🏗️',
+    label: 'Industrial',
+    desc: 'Serious fabrication, anvil, heavy machinery — 150kg+',
+    kg: 150,
   },
 ];
 
 const HEIGHT_OPTIONS = [
-  { id: 'sitting', label: 'Sitting height', desc: '680–750mm — standard desk', heightMm: 720 },
-  { id: 'standing', label: 'Standing height', desc: '900–1100mm — standing desk', heightMm: 1000 },
-  { id: 'bench', label: 'Workbench', desc: '850–950mm — garage/lab bench', heightMm: 900 },
+  { id: 'low', label: 'Seated height', desc: '750mm — working while seated', heightMm: 750 },
+  { id: 'standard', label: 'Standard bench', desc: '900mm — most comfortable for standing work', heightMm: 900 },
+  { id: 'tall', label: 'Tall bench', desc: '1000mm — for tall people or precision work', heightMm: 1000 },
 ];
 
 export function TemplateWizard({ template, onApply, onClose }) {
   const [loadOption, setLoadOption] = useState('standard');
-  const [heightOption, setHeightOption] = useState('sitting');
+  const [heightOption, setHeightOption] = useState('standard');
 
   function handleApply() {
     const load = LOAD_OPTIONS.find((o) => o.id === loadOption);
     const height = HEIGHT_OPTIONS.find((o) => o.id === heightOption);
     onApply(template, load.kg, height.heightMm);
   }
-
-  const showHeightQuestion = ['executiveDesk', 'garageWorkbench', 'labBench', 'compactDesk'].includes(template.id);
 
   return (
     <div className="wizard-overlay" onClick={onClose}>
@@ -54,7 +59,7 @@ export function TemplateWizard({ template, onApply, onClose }) {
         </div>
 
         <div className="wizard-question">
-          <label className="wizard-label">What will you be loading it with?</label>
+          <label className="wizard-label">What kind of work will you do?</label>
           <div className="wizard-options">
             {LOAD_OPTIONS.map((opt) => (
               <button
@@ -72,30 +77,28 @@ export function TemplateWizard({ template, onApply, onClose }) {
           </div>
         </div>
 
-        {showHeightQuestion && (
-          <div className="wizard-question">
-            <label className="wizard-label">What height works for you?</label>
-            <div className="wizard-options">
-              {HEIGHT_OPTIONS.map((opt) => (
-                <button
-                  key={opt.id}
-                  className={`wizard-option ${heightOption === opt.id ? 'active' : ''}`}
-                  onClick={() => setHeightOption(opt.id)}
-                >
-                  <div>
-                    <strong>{opt.label}</strong>
-                    <span>{opt.desc}</span>
-                  </div>
-                </button>
-              ))}
-            </div>
+        <div className="wizard-question">
+          <label className="wizard-label">What height works for you?</label>
+          <div className="wizard-options">
+            {HEIGHT_OPTIONS.map((opt) => (
+              <button
+                key={opt.id}
+                className={`wizard-option ${heightOption === opt.id ? 'active' : ''}`}
+                onClick={() => setHeightOption(opt.id)}
+              >
+                <div>
+                  <strong>{opt.label}</strong>
+                  <span>{opt.desc}</span>
+                </div>
+              </button>
+            ))}
           </div>
-        )}
+        </div>
 
         <div className="wizard-footer">
           <button className="wizard-cancel" onClick={onClose}>Cancel</button>
           <button className="wizard-apply" onClick={handleApply}>
-            Build this frame →
+            Build this bench →
           </button>
         </div>
       </div>

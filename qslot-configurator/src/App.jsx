@@ -12,9 +12,12 @@ import { PROFILES } from './data/catalog';
 import './App.css';
 
 function App() {
-  const [dimensions, setDimensions] = useState({ width: 1500, depth: 750, height: 750 });
+  const [dimensions, setDimensions] = useState({ width: 1800, depth: 750, height: 900 });
   const [profile, setProfile] = useState('4040');
   const [finish, setFinish] = useState('silver');
+  const [worktop, setWorktop] = useState('plywood');
+  const [backPanel, setBackPanel] = useState('none');
+  const [undershelf, setUndershelf] = useState(false);
   const [accessories, setAccessories] = useState([]);
   const [activeTab, setActiveTab] = useState('design');
   const [loadKg, setLoadKg] = useState(50);
@@ -28,15 +31,14 @@ function App() {
     toastTimer.current = setTimeout(() => setToast(null), 4000);
   }
 
-  // THE KEY: auto-resolve runs on every dimension/load/profile change
-  // It guarantees a safe structural result — always green, never red or amber
+  // Auto-resolve: guarantees always-green structural result
   const resolved = useMemo(() => {
     const pw = PROFILES[profile].width;
     const spanMm = dimensions.width - (2 * pw);
     return autoResolveStructure(spanMm, profile, loadKg);
   }, [dimensions.width, profile, loadKg]);
 
-  // If auto-resolve upgraded the profile, apply it
+  // Apply auto-upgrade if resolver picked a bigger profile
   useEffect(() => {
     if (resolved.upgraded) {
       setProfile(resolved.profileId);
@@ -48,12 +50,10 @@ function App() {
     setDimensions((prev) => ({ ...prev, [key]: value }));
   }, []);
 
-  // Template click → open wizard
   const handleTemplateSelect = useCallback((template) => {
     setPendingTemplate(template);
   }, []);
 
-  // Wizard apply → set dims + load, auto-resolve handles the rest
   const handleWizardApply = useCallback((template, chosenLoadKg, chosenHeightMm) => {
     const newDims = {
       width: template.defaults.width,
@@ -63,7 +63,6 @@ function App() {
     setDimensions(newDims);
     setLoadKg(chosenLoadKg);
 
-    // Pick the best profile for the chosen settings
     const pw = PROFILES[template.defaults.profile].width;
     const spanMm = newDims.width - (2 * pw);
     const minProfile = getMinimumSafeProfile(spanMm, chosenLoadKg);
@@ -75,7 +74,6 @@ function App() {
     setPendingTemplate(null);
   }, []);
 
-  // Profile change — block if unsafe, friendly message
   const handleProfileChange = useCallback((newProfile) => {
     const pw = PROFILES[newProfile].width;
     const spanMm = dimensions.width - (2 * pw);
@@ -102,8 +100,8 @@ function App() {
         <div className="logo">
           <span className="logo-icon">Q</span>
           <div>
-            <h1 className="logo-title">Q-Slot Configurator</h1>
-            <p className="logo-sub">80/20 T-Slot Aluminum Frame Designer</p>
+            <h1 className="logo-title">Q-Slot Workbench Builder</h1>
+            <p className="logo-sub">80/20 T-Slot Aluminium Garage Workbench</p>
           </div>
         </div>
         <div className="header-badge">
@@ -124,11 +122,17 @@ function App() {
             dimensions={dimensions}
             profile={profile}
             finish={finish}
+            worktop={worktop}
+            backPanel={backPanel}
+            undershelf={undershelf}
             loadKg={loadKg}
             resolved={resolved}
             onDimensionChange={handleDimensionChange}
             onProfileChange={handleProfileChange}
             onFinishChange={setFinish}
+            onWorktopChange={setWorktop}
+            onBackPanelChange={setBackPanel}
+            onUndershelfChange={setUndershelf}
             onTemplateSelect={handleTemplateSelect}
           />
         </aside>
@@ -138,18 +142,21 @@ function App() {
             dimensions={dimensions}
             profile={profile}
             finish={finish}
+            worktop={worktop}
+            backPanel={backPanel}
+            undershelf={undershelf}
             onDimensionChange={handleDimensionChange}
           />
 
           {toast && (
             <div className={`toast toast-${toast.type}`}>
-              {toast.type === 'upgrade' ? '✓ ' : '⚠ '}
+              {toast.type === 'upgrade' ? '+ ' : '! '}
               {toast.message}
             </div>
           )}
 
           <div className="viewport-info">
-            <span>{dimensions.width} × {dimensions.depth} × {dimensions.height} mm</span>
+            <span>{dimensions.width} x {dimensions.depth} x {dimensions.height} mm</span>
             <span>Orbit: drag | Zoom: scroll</span>
           </div>
         </main>
@@ -159,6 +166,9 @@ function App() {
             dimensions={dimensions}
             profile={profile}
             finish={finish}
+            worktop={worktop}
+            backPanel={backPanel}
+            undershelf={undershelf}
             accessories={accessories}
             extraSupports={resolved.supportsNeeded}
             onToggleAccessory={handleToggleAccessory}

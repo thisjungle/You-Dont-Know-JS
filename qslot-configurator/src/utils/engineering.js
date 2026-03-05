@@ -1,7 +1,7 @@
 // Structural Engineering Calculations for 80/20 T-Slot Extrusions
 // Based on Euler-Bernoulli beam theory for 6063-T6 Aluminum
 
-import { PROFILES, MATERIAL, HARDWARE, CUTTING_FEE } from '../data/catalog';
+import { PROFILES, MATERIAL, HARDWARE, CUTTING_FEE, WORKTOPS, BACK_PANELS } from '../data/catalog';
 
 /**
  * Calculate beam deflection (sag) using Euler-Bernoulli beam theory
@@ -151,79 +151,46 @@ export function calculateCenterSupports(spanMm, profileId) {
  * @param {string} profileId - Profile type
  * @returns {object} Cut list with lengths and quantities
  */
-export function calculateCutList(dims, profileId, extraSupports = 0) {
+export function calculateCutList(dims, profileId, extraSupports = 0, options = {}) {
   const profile = PROFILES[profileId];
-  const pw = profile.width; // profile width in mm
+  const pw = profile.width;
 
-  // External dimensions to internal beam lengths
   const widthBeamLength = dims.width - (2 * pw);
   const depthBeamLength = dims.depth - (2 * pw);
-  const legLength = dims.height; // legs are full height
+  const legLength = dims.height;
 
-  // Center supports for width beams (auto-calculated + user-added)
   const widthSupports = calculateCenterSupports(widthBeamLength, profileId) + extraSupports;
-  // Center supports for depth beams (auto-calculated only)
-  const depthSupports = calculateCenterSupports(depthBeamLength, profileId);
 
   const cuts = [];
 
-  // Top frame - width beams (front and back)
-  cuts.push({
-    label: 'Top Rail (Width)',
-    length: widthBeamLength,
-    quantity: 2,
-    direction: 'x',
-  });
+  // Top frame
+  cuts.push({ label: 'Top Rail (Width)', length: widthBeamLength, quantity: 2, direction: 'x' });
+  cuts.push({ label: 'Top Rail (Depth)', length: depthBeamLength, quantity: 2, direction: 'z' });
 
-  // Top frame - depth beams (left and right)
-  cuts.push({
-    label: 'Top Rail (Depth)',
-    length: depthBeamLength,
-    quantity: 2,
-    direction: 'z',
-  });
+  // Bottom frame
+  cuts.push({ label: 'Bottom Rail (Width)', length: widthBeamLength, quantity: 2, direction: 'x' });
+  cuts.push({ label: 'Bottom Rail (Depth)', length: depthBeamLength, quantity: 2, direction: 'z' });
 
-  // Bottom frame - width beams (front and back)
-  cuts.push({
-    label: 'Bottom Rail (Width)',
-    length: widthBeamLength,
-    quantity: 2,
-    direction: 'x',
-  });
+  // Legs
+  cuts.push({ label: 'Leg', length: legLength, quantity: 4, direction: 'y' });
 
-  // Bottom frame - depth beams (left and right)
-  cuts.push({
-    label: 'Bottom Rail (Depth)',
-    length: depthBeamLength,
-    quantity: 2,
-    direction: 'z',
-  });
-
-  // Legs (4 corners)
-  cuts.push({
-    label: 'Leg',
-    length: legLength,
-    quantity: 4,
-    direction: 'y',
-  });
-
-  // Center support legs if needed
-  const totalCenterLegs = (widthSupports * 2); // supports on front and back rails
+  // Center supports
+  const totalCenterLegs = widthSupports * 2;
   if (totalCenterLegs > 0) {
-    cuts.push({
-      label: 'Center Support Leg',
-      length: legLength,
-      quantity: totalCenterLegs,
-      direction: 'y',
-    });
+    cuts.push({ label: 'Center Support Leg', length: legLength, quantity: totalCenterLegs, direction: 'y' });
+    cuts.push({ label: 'Center Cross Beam', length: depthBeamLength, quantity: widthSupports, direction: 'z' });
+  }
 
-    // Center cross beams at support points
-    cuts.push({
-      label: 'Center Cross Beam',
-      length: depthBeamLength,
-      quantity: widthSupports,
-      direction: 'z',
-    });
+  // Back panel uprights + top rail
+  if (options.backPanel && options.backPanel !== 'none') {
+    const backPanelHeight = 600;
+    cuts.push({ label: 'Back Panel Upright', length: backPanelHeight, quantity: 2, direction: 'y' });
+    cuts.push({ label: 'Back Panel Top Rail', length: widthBeamLength, quantity: 1, direction: 'x' });
+  }
+
+  // Undershelf rails
+  if (options.undershelf) {
+    cuts.push({ label: 'Undershelf Rail (Width)', length: widthBeamLength, quantity: 2, direction: 'x' });
   }
 
   return {
@@ -242,31 +209,38 @@ export function calculateCutList(dims, profileId, extraSupports = 0) {
  * @param {string} profileId
  * @returns {object} Hardware bill
  */
-export function calculateHardware(dims, profileId, extraSupports = 0) {
+export function calculateHardware(dims, profileId, extraSupports = 0, options = {}) {
   const centerSupports = calculateCenterSupports(
     dims.width - (2 * PROFILES[profileId].width),
     profileId
   ) + extraSupports;
 
-  // Base frame: 4 corners × 2 levels (top/bottom) = 8 corner joints
-  // Each corner: 2 joints (one for each direction)
-  let intersections = 8 * 2; // 16 for the base rectangular frame
-
-  // Legs connect to top and bottom frames: 4 legs × 2 ends = 8
+  // Base frame: 4 corners × 2 levels = 16 joints
+  let intersections = 8 * 2;
+  // Legs: 4 legs × 2 ends = 8
   intersections += 4 * 2;
 
-  // Center supports: each support leg has 2 connections + cross beams
+  // Center supports
   if (centerSupports > 0) {
-    intersections += centerSupports * 2 * 2; // support legs, top and bottom
-    intersections += centerSupports * 2; // cross beam connections
+    intersections += centerSupports * 2 * 2;
+    intersections += centerSupports * 2;
   }
 
-  const sparesMultiplier = 1.1; // 10% spares
+  // Back panel: 2 uprights (2 joints each) + 1 top rail (2 joints)
+  if (options.backPanel && options.backPanel !== 'none') {
+    intersections += 2 * 2 + 1 * 2;
+  }
 
+  // Undershelf: 2 rails × 2 joints each
+  if (options.undershelf) {
+    intersections += 2 * 2;
+  }
+
+  const sparesMultiplier = 1.1;
   const brackets = intersections;
   const tNuts = Math.ceil(intersections * 2 * sparesMultiplier);
   const bolts = Math.ceil(intersections * 2 * sparesMultiplier);
-  const endCaps = 4; // for leg bottoms
+  const endCaps = 4;
 
   return {
     intersections,
@@ -281,12 +255,12 @@ export function calculateHardware(dims, profileId, extraSupports = 0) {
 /**
  * Calculate full Bill of Materials with pricing
  */
-export function calculateBOM(dims, profileId, finishMultiplier = 1.0, extraSupports = 0) {
+export function calculateBOM(dims, profileId, finishMultiplier = 1.0, extraSupports = 0, options = {}) {
   const profile = PROFILES[profileId];
-  const cutList = calculateCutList(dims, profileId, extraSupports);
-  const hardware = calculateHardware(dims, profileId, extraSupports);
+  const cutList = calculateCutList(dims, profileId, extraSupports, options);
+  const hardware = calculateHardware(dims, profileId, extraSupports, options);
 
-  // Aluminum cost
+  // Aluminum extrusion cost
   const totalMeters = cutList.totalLength / 1000;
   const aluminumCost = totalMeters * profile.pricePerMeter * finishMultiplier;
 
@@ -300,8 +274,22 @@ export function calculateBOM(dims, profileId, finishMultiplier = 1.0, extraSuppo
     hardware.bolts.quantity * hardware.bolts.unitPrice +
     hardware.endCaps.quantity * hardware.endCaps.unitPrice;
 
-  const subtotal = aluminumCost + cuttingCost + hardwareCost;
-  const gst = subtotal * 0.1; // 10% GST (Australia)
+  // Worktop cost
+  const worktopSqM = (dims.width / 1000) * (dims.depth / 1000);
+  const worktopData = options.worktop ? WORKTOPS[options.worktop] : null;
+  const worktopCost = worktopData ? worktopSqM * worktopData.pricePerSqM : 0;
+
+  // Back panel cost
+  const backPanelData = (options.backPanel && options.backPanel !== 'none') ? BACK_PANELS[options.backPanel] : null;
+  const backPanelSqM = backPanelData ? ((dims.width - 2 * profile.width) / 1000) * 0.6 : 0; // 600mm height
+  const backPanelCost = backPanelData ? backPanelSqM * backPanelData.pricePerSqM : 0;
+
+  // Undershelf cost (18mm plywood always)
+  const undershelfSqM = options.undershelf ? ((dims.width - 2 * profile.width) / 1000) * ((dims.depth - 2 * profile.width) / 1000) : 0;
+  const undershelfCost = options.undershelf ? undershelfSqM * 85 : 0; // marine plywood price
+
+  const subtotal = aluminumCost + cuttingCost + hardwareCost + worktopCost + backPanelCost + undershelfCost;
+  const gst = subtotal * 0.1;
   const total = subtotal + gst;
 
   return {
@@ -309,10 +297,18 @@ export function calculateBOM(dims, profileId, finishMultiplier = 1.0, extraSuppo
     dimensions: { ...dims },
     cutList,
     hardware,
+    extras: {
+      worktop: { name: worktopData?.name || 'None', cost: Math.round(worktopCost * 100) / 100, sqM: Math.round(worktopSqM * 100) / 100 },
+      backPanel: { name: backPanelData?.name || 'None', cost: Math.round(backPanelCost * 100) / 100, sqM: Math.round(backPanelSqM * 100) / 100 },
+      undershelf: { included: !!options.undershelf, cost: Math.round(undershelfCost * 100) / 100, sqM: Math.round(undershelfSqM * 100) / 100 },
+    },
     pricing: {
       aluminum: Math.round(aluminumCost * 100) / 100,
       cutting: Math.round(cuttingCost * 100) / 100,
       hardware: Math.round(hardwareCost * 100) / 100,
+      worktop: Math.round(worktopCost * 100) / 100,
+      backPanel: Math.round(backPanelCost * 100) / 100,
+      undershelf: Math.round(undershelfCost * 100) / 100,
       subtotal: Math.round(subtotal * 100) / 100,
       gst: Math.round(gst * 100) / 100,
       total: Math.round(total * 100) / 100,
