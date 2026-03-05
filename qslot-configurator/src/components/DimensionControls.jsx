@@ -1,9 +1,11 @@
 import { PROFILES, FINISHES, TEMPLATES } from '../data/catalog';
+import { isProfileSafeForSpan } from '../utils/engineering';
 
 export function DimensionControls({
   dimensions,
   profile,
   finish,
+  loadKg,
   extraSupports,
   structuralCheck,
   autoSupports,
@@ -14,6 +16,7 @@ export function DimensionControls({
 }) {
   const deflection = structuralCheck;
   const centerSupports = autoSupports + extraSupports;
+  const widthBeam = dimensions.width - (2 * PROFILES[profile].width);
 
   return (
     <div className="controls-panel">
@@ -109,17 +112,24 @@ export function DimensionControls({
       <div className="control-section">
         <label className="section-label">Extrusion Profile</label>
         <div className="profile-options">
-          {Object.values(PROFILES).map((p) => (
-            <button
-              key={p.id}
-              className={`profile-btn ${profile === p.id ? 'active' : ''}`}
-              onClick={() => onProfileChange(p.id)}
-            >
-              <strong>{p.name}</strong>
-              <span className="profile-price">${p.pricePerMeter.toFixed(2)}/m</span>
-              <span className="profile-desc">{p.description}</span>
-            </button>
-          ))}
+          {Object.values(PROFILES).map((p) => {
+            const safe = isProfileSafeForSpan(p.id, widthBeam, loadKg);
+            return (
+              <button
+                key={p.id}
+                className={`profile-btn ${profile === p.id ? 'active' : ''} ${!safe ? 'profile-unsafe' : ''}`}
+                onClick={() => onProfileChange(p.id)}
+                title={!safe ? `Too light for your current width at this load` : undefined}
+              >
+                <div className="profile-btn-row">
+                  <strong>{p.name}</strong>
+                  {!safe && <span className="profile-lock">Not recommended</span>}
+                </div>
+                <span className="profile-price">${p.pricePerMeter.toFixed(2)}/m</span>
+                <span className="profile-desc">{p.description}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 

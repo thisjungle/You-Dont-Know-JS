@@ -67,6 +67,30 @@ export function getSuggestedUpgrade(currentProfile) {
 }
 
 /**
+ * Returns true if the profile can handle the span safely (with up to 3 auto-supports).
+ */
+export function isProfileSafeForSpan(profileId, spanMm, loadKg = 50) {
+  for (let supports = 0; supports <= 3; supports++) {
+    const result = calculateDeflection(spanMm, profileId, loadKg, supports);
+    if (result && result.status === 'safe') return true;
+  }
+  return false;
+}
+
+/**
+ * Returns the lightest profile that can safely handle the span at the given load.
+ */
+export function getMinimumSafeProfile(spanMm, loadKg = 50) {
+  const profileOrder = ['2020', '4040', '4080'];
+  for (const profileId of profileOrder) {
+    if (isProfileSafeForSpan(profileId, spanMm, loadKg)) {
+      return profileId;
+    }
+  }
+  return '4080'; // heaviest available
+}
+
+/**
  * Calculate the number of center supports needed based on span
  * @param {number} spanMm - Total span in mm
  * @param {string} profileId - Profile type
