@@ -2,12 +2,12 @@ import { useMemo, useState } from 'react';
 import { calculateBOM } from '../utils/engineering';
 import { FINISHES, ACCESSORIES, SHIPPING_TIERS } from '../data/catalog';
 
-export function PricingPanel({ dimensions, profile, finish, accessories, onToggleAccessory }) {
+export function PricingPanel({ dimensions, profile, finish, accessories, extraSupports, onToggleAccessory }) {
   const [shipping, setShipping] = useState('pickup');
 
   const bom = useMemo(
-    () => calculateBOM(dimensions, profile, FINISHES[finish].multiplier),
-    [dimensions, profile, finish]
+    () => calculateBOM(dimensions, profile, FINISHES[finish].multiplier, extraSupports),
+    [dimensions, profile, finish, extraSupports]
   );
 
   const accessoryTotal = useMemo(

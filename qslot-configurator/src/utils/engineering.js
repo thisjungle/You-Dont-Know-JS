@@ -15,11 +15,15 @@ import { PROFILES, MATERIAL, HARDWARE, CUTTING_FEE } from '../data/catalog';
  * @param {number} loadKg - Point load at center in kg
  * @returns {object} Deflection analysis
  */
-export function calculateDeflection(lengthMm, profileId, loadKg = 50) {
+export function calculateDeflection(lengthMm, profileId, loadKg = 50, numSupports = 0) {
   const profile = PROFILES[profileId];
   if (!profile) return null;
 
-  const L = lengthMm / 1000; // convert to meters
+  // Divide span by number of sections (supports + 1) to get effective beam length
+  const sections = numSupports + 1;
+  const effectiveLengthMm = lengthMm / sections;
+
+  const L = effectiveLengthMm / 1000; // convert to meters
   const P = loadKg * 9.81; // convert to Newtons
   const E = MATERIAL.elasticModulus;
   const I = profile.momentOfInertia;
@@ -57,7 +61,7 @@ export function calculateDeflection(lengthMm, profileId, loadKg = 50) {
   };
 }
 
-function getSuggestedUpgrade(currentProfile) {
+export function getSuggestedUpgrade(currentProfile) {
   const upgrades = { '2020': '4040', '4040': '4080', '4080': null };
   return upgrades[currentProfile];
 }
@@ -84,7 +88,7 @@ export function calculateCenterSupports(spanMm, profileId) {
  * @param {string} profileId - Profile type
  * @returns {object} Cut list with lengths and quantities
  */
-export function calculateCutList(dims, profileId) {
+export function calculateCutList(dims, profileId, extraSupports = 0) {
   const profile = PROFILES[profileId];
   const pw = profile.width; // profile width in mm
 
@@ -93,9 +97,9 @@ export function calculateCutList(dims, profileId) {
   const depthBeamLength = dims.depth - (2 * pw);
   const legLength = dims.height; // legs are full height
 
-  // Center supports for width beams
-  const widthSupports = calculateCenterSupports(widthBeamLength, profileId);
-  // Center supports for depth beams
+  // Center supports for width beams (auto-calculated + user-added)
+  const widthSupports = calculateCenterSupports(widthBeamLength, profileId) + extraSupports;
+  // Center supports for depth beams (auto-calculated only)
   const depthSupports = calculateCenterSupports(depthBeamLength, profileId);
 
   const cuts = [];
@@ -175,11 +179,11 @@ export function calculateCutList(dims, profileId) {
  * @param {string} profileId
  * @returns {object} Hardware bill
  */
-export function calculateHardware(dims, profileId) {
+export function calculateHardware(dims, profileId, extraSupports = 0) {
   const centerSupports = calculateCenterSupports(
     dims.width - (2 * PROFILES[profileId].width),
     profileId
-  );
+  ) + extraSupports;
 
   // Base frame: 4 corners × 2 levels (top/bottom) = 8 corner joints
   // Each corner: 2 joints (one for each direction)
@@ -214,10 +218,10 @@ export function calculateHardware(dims, profileId) {
 /**
  * Calculate full Bill of Materials with pricing
  */
-export function calculateBOM(dims, profileId, finishMultiplier = 1.0) {
+export function calculateBOM(dims, profileId, finishMultiplier = 1.0, extraSupports = 0) {
   const profile = PROFILES[profileId];
-  const cutList = calculateCutList(dims, profileId);
-  const hardware = calculateHardware(dims, profileId);
+  const cutList = calculateCutList(dims, profileId, extraSupports);
+  const hardware = calculateHardware(dims, profileId, extraSupports);
 
   // Aluminum cost
   const totalMeters = cutList.totalLength / 1000;

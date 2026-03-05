@@ -1,7 +1,10 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Scene3D } from './components/Scene3D';
 import { DimensionControls } from './components/DimensionControls';
 import { PricingPanel } from './components/PricingPanel';
+import { StructuralAlert } from './components/StructuralAlert';
+import { calculateDeflection, calculateCenterSupports } from './utils/engineering';
+import { PROFILES } from './data/catalog';
 import './App.css';
 
 function App() {
@@ -14,6 +17,24 @@ function App() {
   const [finish, setFinish] = useState('silver');
   const [accessories, setAccessories] = useState([]);
   const [activeTab, setActiveTab] = useState('design');
+  const [extraSupports, setExtraSupports] = useState(0);
+
+  const widthBeamLength = useMemo(() => {
+    const pw = PROFILES[profile].width;
+    return dimensions.width - (2 * pw);
+  }, [dimensions.width, profile]);
+
+  const autoSupports = useMemo(
+    () => calculateCenterSupports(widthBeamLength, profile),
+    [widthBeamLength, profile]
+  );
+
+  const totalSupports = autoSupports + extraSupports;
+
+  const structuralCheck = useMemo(
+    () => calculateDeflection(widthBeamLength, profile, 50, totalSupports),
+    [widthBeamLength, profile, totalSupports]
+  );
 
   const handleDimensionChange = useCallback((key, value) => {
     setDimensions((prev) => ({ ...prev, [key]: value }));
@@ -26,12 +47,22 @@ function App() {
       height: template.defaults.height,
     });
     setProfile(template.defaults.profile);
+    setExtraSupports(0);
+  }, []);
+
+  const handleProfileChange = useCallback((newProfile) => {
+    setProfile(newProfile);
+    setExtraSupports(0);
   }, []);
 
   const handleToggleAccessory = useCallback((id) => {
     setAccessories((prev) =>
       prev.includes(id) ? prev.filter((a) => a !== id) : [...prev, id]
     );
+  }, []);
+
+  const handleAddSupport = useCallback(() => {
+    setExtraSupports((n) => n + 1);
   }, []);
 
   return (
@@ -77,8 +108,11 @@ function App() {
             dimensions={dimensions}
             profile={profile}
             finish={finish}
+            extraSupports={extraSupports}
+            structuralCheck={structuralCheck}
+            autoSupports={autoSupports}
             onDimensionChange={handleDimensionChange}
-            onProfileChange={setProfile}
+            onProfileChange={handleProfileChange}
             onFinishChange={setFinish}
             onTemplateSelect={handleTemplateSelect}
           />
@@ -90,6 +124,12 @@ function App() {
             profile={profile}
             finish={finish}
             onDimensionChange={handleDimensionChange}
+          />
+          <StructuralAlert
+            deflection={structuralCheck}
+            profile={profile}
+            onUpgradeProfile={handleProfileChange}
+            onAddSupport={handleAddSupport}
           />
           <div className="viewport-info">
             <span>{dimensions.width} x {dimensions.depth} x {dimensions.height} mm</span>
@@ -103,6 +143,7 @@ function App() {
             profile={profile}
             finish={finish}
             accessories={accessories}
+            extraSupports={extraSupports}
             onToggleAccessory={handleToggleAccessory}
           />
         </aside>

@@ -711,6 +711,61 @@ body {
   line-height: 1.4;
 }
 
+/* Structural Alert Overlay */
+.structural-alert {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border-radius: 10px;
+  max-width: 480px;
+  width: calc(100% - 48px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+.alert-msg {
+  font-size: 13px;
+  font-weight: 600;
+  color: white;
+  line-height: 1.4;
+}
+
+.alert-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.alert-btn {
+  padding: 7px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.18);
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.alert-btn:hover {
+  background: rgba(255, 255, 255, 0.32);
+}
+
+.alert-btn:active {
+  background: rgba(255, 255, 255, 0.45);
+}
+
 /* Mobile Responsive */
 @media (max-width: 1024px) {
   .mobile-tabs {

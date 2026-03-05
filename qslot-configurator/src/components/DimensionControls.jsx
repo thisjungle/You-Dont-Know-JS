@@ -1,19 +1,19 @@
 import { PROFILES, FINISHES, TEMPLATES } from '../data/catalog';
-import { calculateDeflection, calculateCenterSupports } from '../utils/engineering';
 
 export function DimensionControls({
   dimensions,
   profile,
   finish,
+  extraSupports,
+  structuralCheck,
+  autoSupports,
   onDimensionChange,
   onProfileChange,
   onFinishChange,
   onTemplateSelect,
 }) {
-  const profileData = PROFILES[profile];
-  const widthBeam = dimensions.width - (2 * profileData.width);
-  const deflection = calculateDeflection(widthBeam, profile, 50);
-  const centerSupports = calculateCenterSupports(widthBeam, profile);
+  const deflection = structuralCheck;
+  const centerSupports = autoSupports + extraSupports;
 
   return (
     <div className="controls-panel">

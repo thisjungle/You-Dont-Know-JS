@@ -1,7 +1,6 @@
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Environment, ContactShadows, Grid, Html } from '@react-three/drei';
+import { OrbitControls, Environment, ContactShadows, Grid } from '@react-three/drei';
 import { FrameModel } from './FrameModel';
-import { StressOverlay } from './StressOverlay';
 
 export function Scene3D({ dimensions, profile, finish, onDimensionChange }) {
   return (
@@ -27,8 +26,6 @@ export function Scene3D({ dimensions, profile, finish, onDimensionChange }) {
           finish={finish}
           onDimensionChange={onDimensionChange}
         />
-
-        <StressOverlay dimensions={dimensions} profile={profile} />
 
         <ContactShadows
           position={[0, -0.01, 0]}
