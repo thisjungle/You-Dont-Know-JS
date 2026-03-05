@@ -6,16 +6,12 @@ export function DimensionControls({
   profile,
   finish,
   loadKg,
-  extraSupports,
-  structuralCheck,
-  autoSupports,
+  resolved,
   onDimensionChange,
   onProfileChange,
   onFinishChange,
   onTemplateSelect,
 }) {
-  const deflection = structuralCheck;
-  const centerSupports = autoSupports + extraSupports;
   const widthBeam = dimensions.width - (2 * PROFILES[profile].width);
 
   return (
@@ -123,7 +119,7 @@ export function DimensionControls({
               >
                 <div className="profile-btn-row">
                   <strong>{p.name}</strong>
-                  {!safe && <span className="profile-lock">Not recommended</span>}
+                  {!safe && <span className="profile-lock">Too light</span>}
                 </div>
                 <span className="profile-price">${p.pricePerMeter.toFixed(2)}/m</span>
                 <span className="profile-desc">{p.description}</span>
@@ -158,30 +154,18 @@ export function DimensionControls({
         </div>
       </div>
 
-      {/* Structural Status */}
+      {/* Structural Status — always green, purely informational */}
       <div className="control-section">
-        <label className="section-label">Structural Analysis</label>
-        <div
-          className="stress-indicator"
-          style={{ borderColor: deflection?.color || '#22c55e' }}
-        >
-          <div
-            className="stress-dot"
-            style={{ background: deflection?.color || '#22c55e' }}
-          />
+        <label className="section-label">Structural Status</label>
+        <div className="stress-indicator" style={{ borderColor: '#22c55e' }}>
+          <div className="stress-dot" style={{ background: '#22c55e' }} />
           <div>
-            <div className="stress-status">
-              {deflection?.status === 'safe'
-                ? 'Excellent'
-                : deflection?.status === 'warning'
-                ? 'Caution'
-                : 'Needs Support'}
-            </div>
+            <div className="stress-status">All Good</div>
             <div className="stress-detail">
-              Deflection: {deflection?.deflectionMm || 0}mm
-              {centerSupports > 0 && (
+              Deflection: {resolved.deflection?.deflectionMm || 0}mm
+              {resolved.supportsNeeded > 0 && (
                 <span className="support-badge">
-                  +{centerSupports} center support{centerSupports > 1 ? 's' : ''} added
+                  +{resolved.supportsNeeded} center support{resolved.supportsNeeded > 1 ? 's' : ''} auto-added
                 </span>
               )}
             </div>

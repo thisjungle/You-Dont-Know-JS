@@ -4,10 +4,9 @@ import { DimensionControls } from './components/DimensionControls';
 import { PricingPanel } from './components/PricingPanel';
 import { TemplateWizard } from './components/TemplateWizard';
 import {
-  calculateDeflection,
-  calculateCenterSupports,
-  isProfileSafeForSpan,
+  autoResolveStructure,
   getMinimumSafeProfile,
+  isProfileSafeForSpan,
 } from './utils/engineering';
 import { PROFILES } from './data/catalog';
 import './App.css';
@@ -18,7 +17,6 @@ function App() {
   const [finish, setFinish] = useState('silver');
   const [accessories, setAccessories] = useState([]);
   const [activeTab, setActiveTab] = useState('design');
-  const [extraSupports, setExtraSupports] = useState(0);
   const [loadKg, setLoadKg] = useState(50);
   const [pendingTemplate, setPendingTemplate] = useState(null);
   const [toast, setToast] = useState(null);
@@ -30,43 +28,32 @@ function App() {
     toastTimer.current = setTimeout(() => setToast(null), 4000);
   }
 
-  // Auto-upgrade profile when width or load changes and current profile is no longer safe
-  useEffect(() => {
+  // THE KEY: auto-resolve runs on every dimension/load/profile change
+  // It guarantees a safe structural result — always green, never red or amber
+  const resolved = useMemo(() => {
     const pw = PROFILES[profile].width;
     const spanMm = dimensions.width - (2 * pw);
-    if (!isProfileSafeForSpan(profile, spanMm, loadKg)) {
-      const minProfile = getMinimumSafeProfile(spanMm, loadKg);
-      setProfile(minProfile);
-      setExtraSupports(0);
-      showToast(`Profile upgraded to ${PROFILES[minProfile].name} for your span`, 'upgrade');
+    return autoResolveStructure(spanMm, profile, loadKg);
+  }, [dimensions.width, profile, loadKg]);
+
+  // If auto-resolve upgraded the profile, apply it
+  useEffect(() => {
+    if (resolved.upgraded) {
+      setProfile(resolved.profileId);
+      showToast(`Auto-upgraded to ${PROFILES[resolved.profileId].name} for your span`, 'upgrade');
     }
-  }, [dimensions.width, loadKg]);
-
-  const widthBeamLength = useMemo(() => {
-    const pw = PROFILES[profile].width;
-    return dimensions.width - (2 * pw);
-  }, [dimensions.width, profile]);
-
-  const autoSupports = useMemo(
-    () => calculateCenterSupports(widthBeamLength, profile),
-    [widthBeamLength, profile]
-  );
-
-  const structuralCheck = useMemo(
-    () => calculateDeflection(widthBeamLength, profile, loadKg, autoSupports + extraSupports),
-    [widthBeamLength, profile, loadKg, autoSupports, extraSupports]
-  );
+  }, [resolved.upgraded, resolved.profileId]);
 
   const handleDimensionChange = useCallback((key, value) => {
     setDimensions((prev) => ({ ...prev, [key]: value }));
   }, []);
 
-  // Template click → open wizard instead of applying immediately
+  // Template click → open wizard
   const handleTemplateSelect = useCallback((template) => {
     setPendingTemplate(template);
   }, []);
 
-  // Wizard "Build this frame" → apply template + user's load/height choices
+  // Wizard apply → set dims + load, auto-resolve handles the rest
   const handleWizardApply = useCallback((template, chosenLoadKg, chosenHeightMm) => {
     const newDims = {
       width: template.defaults.width,
@@ -75,13 +62,11 @@ function App() {
     };
     setDimensions(newDims);
     setLoadKg(chosenLoadKg);
-    setExtraSupports(0);
 
-    // Auto-select the minimum safe profile for the chosen span + load
+    // Pick the best profile for the chosen settings
     const pw = PROFILES[template.defaults.profile].width;
     const spanMm = newDims.width - (2 * pw);
     const minProfile = getMinimumSafeProfile(spanMm, chosenLoadKg);
-    // Use the heavier of the template's default or the minimum safe profile
     const profileOrder = ['2020', '4040', '4080'];
     const templateIdx = profileOrder.indexOf(template.defaults.profile);
     const minIdx = profileOrder.indexOf(minProfile);
@@ -90,20 +75,19 @@ function App() {
     setPendingTemplate(null);
   }, []);
 
-  // Profile change — block if unsafe for current span + load
+  // Profile change — block if unsafe, friendly message
   const handleProfileChange = useCallback((newProfile) => {
     const pw = PROFILES[newProfile].width;
     const spanMm = dimensions.width - (2 * pw);
     if (!isProfileSafeForSpan(newProfile, spanMm, loadKg)) {
       const minProfile = getMinimumSafeProfile(spanMm, loadKg);
       showToast(
-        `${PROFILES[newProfile].name} can't safely span ${dimensions.width}mm at this load. Minimum: ${PROFILES[minProfile].name}`,
+        `${PROFILES[newProfile].name} can't handle ${dimensions.width}mm at this load. Minimum: ${PROFILES[minProfile].name}`,
         'warning'
       );
       return;
     }
     setProfile(newProfile);
-    setExtraSupports(0);
   }, [dimensions.width, loadKg]);
 
   const handleToggleAccessory = useCallback((id) => {
@@ -141,9 +125,7 @@ function App() {
             profile={profile}
             finish={finish}
             loadKg={loadKg}
-            extraSupports={extraSupports}
-            structuralCheck={structuralCheck}
-            autoSupports={autoSupports}
+            resolved={resolved}
             onDimensionChange={handleDimensionChange}
             onProfileChange={handleProfileChange}
             onFinishChange={setFinish}
@@ -178,7 +160,7 @@ function App() {
             profile={profile}
             finish={finish}
             accessories={accessories}
-            extraSupports={extraSupports}
+            extraSupports={resolved.supportsNeeded}
             onToggleAccessory={handleToggleAccessory}
           />
         </aside>

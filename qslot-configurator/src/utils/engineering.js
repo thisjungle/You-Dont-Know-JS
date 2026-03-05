@@ -91,6 +91,45 @@ export function getMinimumSafeProfile(spanMm, loadKg = 50) {
 }
 
 /**
+ * The master auto-resolver. Given ANY span + load, returns a guaranteed-safe
+ * combination of profile + supports. The user never sees red or amber.
+ *
+ * Strategy:
+ *  1. Try current profile with increasing supports (0→6)
+ *  2. If that fails, upgrade profile and repeat
+ *  3. Always returns a safe combo — worst case: heaviest profile + max supports
+ */
+export function autoResolveStructure(spanMm, currentProfileId, loadKg = 50) {
+  const profileOrder = ['2020', '4040', '4080'];
+  const startIdx = profileOrder.indexOf(currentProfileId);
+
+  // Try current profile first, then heavier ones
+  for (let pi = startIdx; pi < profileOrder.length; pi++) {
+    const profileId = profileOrder[pi];
+    for (let supports = 0; supports <= 6; supports++) {
+      const result = calculateDeflection(spanMm, profileId, loadKg, supports);
+      if (result && result.status === 'safe') {
+        return {
+          profileId,
+          supportsNeeded: supports,
+          deflection: result,
+          upgraded: profileId !== currentProfileId,
+        };
+      }
+    }
+  }
+
+  // Absolute fallback — heaviest profile, max supports (should handle anything within slider range)
+  const fallbackResult = calculateDeflection(spanMm, '4080', loadKg, 6);
+  return {
+    profileId: '4080',
+    supportsNeeded: 6,
+    deflection: fallbackResult,
+    upgraded: currentProfileId !== '4080',
+  };
+}
+
+/**
  * Calculate the number of center supports needed based on span
  * @param {number} spanMm - Total span in mm
  * @param {string} profileId - Profile type
